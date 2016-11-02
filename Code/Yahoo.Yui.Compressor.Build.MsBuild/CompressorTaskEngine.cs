@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading;
@@ -23,6 +25,8 @@ namespace Yahoo.Yui.Compressor.Build
         public string LoggingType { get; set; }
 
         public FileSpec[] SourceFiles { get; set; }
+
+        public IList<string> OutputFiles { get; set; }
 
         public string OutputFile { get; set; }
 
@@ -90,7 +94,7 @@ namespace Yahoo.Yui.Compressor.Build
 
             foreach (var sourceFile in SourceFiles)
             {
-                if (string.Compare(sourceFile.FileName, OutputFile, StringComparison.InvariantCultureIgnoreCase) ==0)
+                if (string.Compare(sourceFile.FileName, OutputFile, StringComparison.InvariantCultureIgnoreCase) == 0)
                 {
                     Log.LogError("Output file cannot be the same as source file(s).");
                     return false;
@@ -133,19 +137,32 @@ namespace Yahoo.Yui.Compressor.Build
 
             var startTime = DateTime.Now;
             var errorFound = false;
-            var compressedText = CompressFiles(out errorFound);
 
-            if (errorFound)
+            OutputFiles = OutputFile.Split(';');
+            if (OutputFiles.Count == SourceFiles.Length)
             {
-                Log.LogMessage("Error found during compression - see log.");
-                return false;
+                if (CompressFiles(out errorFound) == null)
+                {
+                    Log.LogMessage("Failed to finish compression multiple files - terminating prematurely.");
+                    return false;
+                }
             }
-
-            // Save this css to the output file, if we have some result text.
-            if (!SaveCompressedText(compressedText))
+            else
             {
-                Log.LogMessage("Failed to finish compression - terminating prematurely.");
-                return false;
+                var compressedText = CompressFiles(out errorFound);
+
+                if (errorFound)
+                {
+                    Log.LogMessage("Error found during compression - see log.");
+                    return false;
+                }
+
+                // Save this css to the output file, if we have some result text.
+                if (!SaveCompressedText(compressedText))
+                {
+                    Log.LogMessage("Failed to finish compression - terminating prematurely.");
+                    return false;
+                }
             }
 
             Log.LogMessage("Finished compression.");
@@ -307,7 +324,24 @@ namespace Yahoo.Yui.Compressor.Build
                             {
                                 finalContent = new StringBuilder();
                             }
-                            finalContent.Append(compressedContent);
+
+                            if (OutputFiles.Count == SourceFiles.Length)
+                            {
+                                finalContent.Clear();
+                                var fileInfo = new FileInfo(file.FileName);
+                                OutputFile = OutputFiles.Single(f => f.EndsWith(fileInfo.Name));
+                                // Save this css to the output file, if we have some result text.
+                                finalContent.Append(compressedContent);
+                                if (!SaveCompressedText(finalContent))
+                                {
+                                    Log.LogMessage("Failed to finish compression - terminating prematurely.");
+                                    return null;
+                                }
+                            }
+                            else
+                            {
+                                finalContent.Append(compressedContent);
+                            }
                         }
 
                         // Try and remove this file, if the user requests to do 

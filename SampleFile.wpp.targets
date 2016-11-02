@@ -1,0 +1,42 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<!--http://yuicompressor.codeplex.com/documentation-->
+<!--http://astrocoder.com/auto-minify-bundle-msbuild-yui/-->
+  <!--<UsingTask TaskName="CssCompressorTask"
+             AssemblyFile="$(SolutionDir)packages\YUICompressor.NET.MSBuild.2.7.0.0\lib\NET20\Yahoo.Yui.Compressor.Build.MsBuild.dll" />
+  <UsingTask TaskName="JavaScriptCompressorTask"
+             AssemblyFile="$(SolutionDir)packages\YUICompressor.NET.MSBuild.2.7.0.0\lib\NET20\Yahoo.Yui.Compressor.Build.MsBuild.dll" />-->
+  <UsingTask TaskName="CssCompressorTask"
+             AssemblyFile="$(SolutionDir)Yahoo.Yui.Compressor.Build.MsBuild\bin\Debug\Yahoo.Yui.Compressor.Build.MsBuild.dll" />
+  <UsingTask TaskName="JavaScriptCompressorTask"
+             AssemblyFile="$(SolutionDir)Yahoo.Yui.Compressor.Build.MsBuild\bin\Debug\Yahoo.Yui.Compressor.Build.MsBuild.dll" />
+
+  <!-- This target will run after the files are copied to PackageTmp folder -->
+  <Target Name="CompressJsAndCss" AfterTargets="CopyAllFilesToSingleFolderForPackage">
+    <!-- Discover files to compress -->
+    <ItemGroup>
+      <JavaScriptFiles Include="$(_PackageTempDir)\Scripts\controllers\**\*.js" />
+      <CssFiles Include="$(_PackageTempDir)\Content\*.css" Exclude="$(_PackageTempDir)\Content\**\*.min.css"/>
+      
+      <JavaScriptContent Include="$(SourceWebPhysicalPath)\Scripts\controllers\**\*.js" />
+      <CssContent Include="$(MSBuildThisFileDirectory)Content\**\*.css" Exclude="$(MSBuildThisFileDirectory)Content\**\*.min.css"/>
+    </ItemGroup>
+
+    <Message Text="Compressing JavaScript files" Importance="high" />
+    <!-- 
+      Compress the JavaScript files. 
+      Not the usage of %(JavaScript.Identity which causes this task to run once per
+      .js file in the JavaScriptFiles item list.
+      For more info on batching: http://sedotech.com/resources#Batching
+    -->
+    <JavaScriptCompressorTask SourceFiles="@(JavaScriptFiles)"
+            OutputFile="@(JavaScriptFiles->'$(MSBuildThisFileDirectory)$(_PackageTempDir)\Scripts\controllers\%(RecursiveDir)%(Filename)%(Extension)')"/>
+
+    <Message Text="Compressing CSS files" Importance="high" />
+    
+    <!--<CssCompressorTask SourceFiles="@(CssFiles)"
+            OutputFile="@(CssFiles->'$(_PackageTempDir)\Content\%(RecursiveDir)%(Filename)%(Extension)')"
+			DeleteSourceFiles="true"/>-->
+    <CssCompressorTask SourceFiles="@(CssContent)"
+            OutputFile="@(CssContent->'$(MSBuildThisFileDirectory)$(_PackageTempDir)\Content\%(RecursiveDir)%(Filename)%(Extension)')"/>
+  </Target>
+</Project>
